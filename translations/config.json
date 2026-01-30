@@ -32,6 +32,35 @@
       "commands/skills.json",
       "commands/channels.json",
       "commands/uninstall.json"
+    ],
+    "dashboard": [
+      "dashboard/navigation.json",
+      "dashboard/app-render.json",
+      "dashboard/app-helpers.json",
+      "dashboard/chat.json",
+      "dashboard/overview.json",
+      "dashboard/sessions.json",
+      "dashboard/skills.json",
+      "dashboard/nodes.json",
+      "dashboard/config.json",
+      "dashboard/channels.json",
+      "dashboard/channels-whatsapp.json",
+      "dashboard/channels-common.json",
+      "dashboard/channels-telegram.json",
+      "dashboard/channels-discord.json",
+      "dashboard/channels-slack.json",
+      "dashboard/channels-signal.json",
+      "dashboard/channels-googlechat.json",
+      "dashboard/channels-imessage.json",
+      "dashboard/channels-nostr.json",
+      "dashboard/instances.json",
+      "dashboard/cron.json",
+      "dashboard/debug.json",
+      "dashboard/logs.json",
+      "dashboard/schema.json",
+      "dashboard/config-form-render.json",
+      "dashboard/config-form-node.json",
+      "dashboard/config-form-shared.json"
     ]
   }
 }

@@ -7,6 +7,10 @@
 # 汉化项目: https://openclaw.qt.cool/
 #
 # 武汉晴辰天下网络科技有限公司 | https://qingchencloud.com/
+#
+# 用法:
+#   curl -fsSL https://xxx/install.sh | bash           # 安装稳定版
+#   curl -fsSL https://xxx/install.sh | bash -s -- --nightly  # 安装最新版
 # ============================================================
 
 set -e
@@ -18,6 +22,43 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# 默认安装稳定版
+INSTALL_NIGHTLY=false
+NPM_TAG="latest"
+VERSION_NAME="稳定版"
+
+# 解析参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --nightly)
+            INSTALL_NIGHTLY=true
+            NPM_TAG="nightly"
+            VERSION_NAME="最新版 (Nightly)"
+            shift
+            ;;
+        --help|-h)
+            echo "OpenClaw 汉化版安装脚本"
+            echo ""
+            echo "用法:"
+            echo "  curl -fsSL https://xxx/install.sh | bash                   # 安装稳定版"
+            echo "  curl -fsSL https://xxx/install.sh | bash -s -- --nightly   # 安装最新版"
+            echo ""
+            echo "选项:"
+            echo "  --nightly    安装最新版（每小时自动构建，追踪上游最新代码）"
+            echo "  --help       显示帮助信息"
+            echo ""
+            echo "版本说明:"
+            echo "  稳定版 (@latest)   手动发布，经过测试，推荐生产使用"
+            echo "  最新版 (@nightly)  每小时自动构建，追踪上游，适合测试"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}未知参数: $1${NC}"
+            exit 1
+            ;;
+    esac
+done
 
 # Logo
 print_banner() {
@@ -91,10 +132,10 @@ uninstall_original() {
 # 安装汉化版
 install_chinese() {
     echo ""
-    echo -e "${BLUE}📦 正在安装 OpenClaw 汉化版...${NC}"
+    echo -e "${BLUE}📦 正在安装 OpenClaw 汉化版 [${VERSION_NAME}]...${NC}"
     echo ""
     
-    npm install -g @qingchencloud/openclaw-zh@latest
+    npm install -g @qingchencloud/openclaw-zh@${NPM_TAG}
     
     echo ""
     echo -e "${GREEN}✓${NC} 安装完成！"
@@ -109,6 +150,13 @@ print_success() {
     echo -e "${GREEN}║                                                           ║${NC}"
     echo -e "${GREEN}╚═══════════════════════════════════════════════════════════╝${NC}"
     echo ""
+    echo -e "${CYAN}📦 已安装版本：${VERSION_NAME} (@${NPM_TAG})${NC}"
+    echo ""
+    if [ "$INSTALL_NIGHTLY" = true ]; then
+        echo -e "${YELLOW}⚠  提示：您安装的是最新版，追踪上游最新代码，可能不够稳定。${NC}"
+        echo -e "${YELLOW}   切换到稳定版：npm install -g @qingchencloud/openclaw-zh@latest${NC}"
+        echo ""
+    fi
     echo -e "${CYAN}🚀 快速开始：${NC}"
     echo ""
     echo "   openclaw onboard          # 启动初始化向导（首次必须运行）"

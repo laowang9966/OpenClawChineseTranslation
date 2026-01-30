@@ -37,3 +37,18 @@ Thumbs.db
 # =====================================
 tmp/
 temp/
+
+# =====================================
+# 本地测试文件（不上传到仓库）
+# =====================================
+# Docker 测试配置
+Dockerfile.test
+
+# 本地测试配置目录
+test-config/
+
+# 调试脚本（开发用）
+scripts/extract-untranslated.mjs
+
+# 内部维护文档（仅本地保留）
+docs/MAINTENANCE.md

@@ -84,8 +84,8 @@ export async function applyTranslation(translation, targetDir, options = {}) {
       stats.skipped++;
       if (verbose) log.dim(`已存在: ${original.slice(0, 50)}...`);
     } else if (modified.includes(original)) {
-      // 应用翻译
-      modified = modified.replace(original, translated);
+      // 应用翻译 - 全局替换所有匹配项
+      modified = modified.replaceAll(original, translated);
       stats.applied++;
       if (verbose) {
         log.dim(`替换: ${original.slice(0, 35)}... → ${translated.slice(0, 35)}...`);

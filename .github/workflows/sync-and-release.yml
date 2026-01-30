@@ -1,21 +1,29 @@
 # ============================================================
-# OpenClaw 汉化发行版 - 自动同步与发布工作流
+# OpenClaw 汉化发行版 - 稳定版发布工作流
 # 武汉晴辰天下网络科技有限公司 | https://qingchencloud.com/
 # ============================================================
+# 
+# 触发方式：
+#   1. 推送 tag（格式：v*，如 v2026.1.30-zh.1）
+#   2. 手动触发（用于紧急发布）
+#
+# 版本说明：
+#   - 稳定版 (@latest)：本工作流发布，手动打 tag 触发
+#   - 最新版 (@nightly)：nightly.yml 发布，每小时自动构建
+# ============================================================
 
-name: 同步上游 & 自动发布
+name: 稳定版发布
 
 on:
-  schedule:
-    # 每小时检查一次上游更新
-    - cron: '0 * * * *'
+  push:
+    tags:
+      - 'v*'  # 监听所有 v 开头的 tag
   workflow_dispatch:
     inputs:
-      force_release:
-        description: '强制发布（即使无更新）'
-        required: false
-        default: 'false'
-        type: boolean
+      version:
+        description: '发布版本号（如 2026.1.30-zh.1，不含 v 前缀）'
+        required: true
+        type: string
 
 env:
   UPSTREAM_REPO: openclaw/openclaw
@@ -26,13 +34,9 @@ permissions:
   packages: write
 
 jobs:
-  # ==================== 检测上游更新 ====================
-  check-upstream:
+  # ==================== 稳定版构建与发布 ====================
+  build-and-release:
     runs-on: ubuntu-latest
-    outputs:
-      has_updates: ${{ steps.check.outputs.has_updates }}
-      upstream_version: ${{ steps.check.outputs.version }}
-      commit_count: ${{ steps.check.outputs.commit_count }}
     
     steps:
       - name: 检出代码
@@ -40,35 +44,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 检测上游更新
-        id: check
+      - name: 确定版本号
+        id: version
         run: |
-          # 获取上游最新版本
-          UPSTREAM_VERSION=$(curl -s https://registry.npmjs.org/openclaw/latest | jq -r '.version')
-          echo "上游版本: $UPSTREAM_VERSION"
-          echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
-          
-          # 检查是否需要更新
-          LAST_SYNCED=$(cat .last-synced-version 2>/dev/null || echo "0.0.0")
-          echo "上次同步版本: $LAST_SYNCED"
-          
-          if [ "$UPSTREAM_VERSION" != "$LAST_SYNCED" ] || [ "${{ inputs.force_release }}" == "true" ]; then
-            echo "has_updates=true" >> $GITHUB_OUTPUT
-            echo "✅ 检测到新版本，准备同步"
+          if [ "${{ github.event_name }}" == "push" ]; then
+            # 从 tag 提取版本号（去掉 v 前缀）
+            TAG_NAME="${{ github.ref_name }}"
+            VERSION="${TAG_NAME#v}"
           else
-            echo "has_updates=false" >> $GITHUB_OUTPUT
-            echo "⏸️ 无新版本"
+            # 手动触发时使用输入的版本号
+            VERSION="${{ inputs.version }}"
           fi
+          
+          echo "release_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 发布版本: $VERSION"
 
-  # ==================== 构建与发布 ====================
-  build-and-release:
-    needs: check-upstream
-    if: needs.check-upstream.outputs.has_updates == 'true'
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: 检出代码
-        uses: actions/checkout@v4
+      - name: 获取上游版本
+        id: upstream
+        run: |
+          UPSTREAM_VERSION=$(curl -s https://registry.npmjs.org/openclaw/latest | jq -r '.version')
+          echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 上游版本: $UPSTREAM_VERSION"
 
       - name: 设置 Node.js
         uses: actions/setup-node@v4
@@ -87,8 +83,30 @@ jobs:
           echo "✅ 上游代码已克隆"
 
       - name: 应用汉化补丁
+        id: apply
         run: |
-          node cli/index.mjs apply --verbose
+          # 运行汉化并捕获输出
+          OUTPUT=$(node cli/index.mjs apply --verbose 2>&1) || true
+          echo "$OUTPUT"
+          
+          # 提取统计信息
+          APPLIED=$(echo "$OUTPUT" | grep -oP '应用 \K\d+' | tail -1 || echo "0")
+          EXISTED=$(echo "$OUTPUT" | grep -oP '已存在 \K\d+' | tail -1 || echo "0")
+          FAILED=$(echo "$OUTPUT" | grep -oP '未找到 \K\d+' | tail -1 || echo "0")
+          FILES_COUNT=$(echo "$OUTPUT" | grep -c "替换:" || echo "0")
+          
+          echo "applied=$APPLIED" >> $GITHUB_OUTPUT
+          echo "existed=$EXISTED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "files=$FILES_COUNT" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "📊 汉化统计："
+          echo "   ✅ 应用规则: $APPLIED 条"
+          echo "   ⏭️ 已存在: $EXISTED 条"
+          echo "   ⚠️ 未匹配: $FAILED 条"
+          echo "   📝 替换操作: $FILES_COUNT 次"
+          echo ""
           echo "✅ 汉化补丁已应用"
 
       - name: 验证汉化结果
@@ -103,67 +121,81 @@ jobs:
           pnpm run build
           echo "✅ 构建完成"
 
-      - name: 准备发布版本
-        id: prepare
+      - name: 准备发布
         run: |
-          UPSTREAM_VERSION="${{ needs.check-upstream.outputs.upstream_version }}"
-          # 使用日期+时分秒确保版本唯一
-          TIMESTAMP=$(date +%Y%m%d%H%M)
-          RELEASE_VERSION="${UPSTREAM_VERSION}-zh.${TIMESTAMP}"
+          RELEASE_VERSION="${{ steps.version.outputs.release_version }}"
           
-          echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
-          echo "📦 发布版本: $RELEASE_VERSION"
-          
-          # 更新 package.json 版本
           cd openclaw
           npm version $RELEASE_VERSION --no-git-tag-version --allow-same-version || true
           
-          # 修改包名为汉化版
+          # 修改包信息
           jq '.name = "@qingchencloud/openclaw-zh"' package.json > tmp.json && mv tmp.json package.json
-          jq '.description = "OpenClaw 汉化发行版 - 武汉晴辰天下网络科技有限公司"' package.json > tmp.json && mv tmp.json package.json
+          jq '.description = "OpenClaw 汉化发行版（稳定版）- 武汉晴辰天下网络科技有限公司"' package.json > tmp.json && mv tmp.json package.json
           
-          # 使用我们的中文 README
+          # 使用中文 README
           cp ../README.md ./README.md
-          echo "✅ 已替换为中文 README"
+          echo "✅ 发布准备完成"
 
-      - name: 发布到 npm
+      - name: 发布到 npm (@latest)
         working-directory: openclaw
-        run: npm publish --access public
+        run: npm publish --access public --tag latest
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.prepare.outputs.release_version }}
-          name: OpenClaw 汉化版 v${{ steps.prepare.outputs.release_version }}
+          tag_name: v${{ steps.version.outputs.release_version }}
+          name: "🦞 OpenClaw 汉化版 v${{ steps.version.outputs.release_version }}"
           body: |
-            ## 🦞 OpenClaw 汉化发行版
+            ## 🦞 OpenClaw 汉化发行版 - 稳定版
             
-            **版本**: v${{ steps.prepare.outputs.release_version }}
-            **上游版本**: ${{ needs.check-upstream.outputs.upstream_version }}
-            **发布时间**: ${{ github.event.repository.updated_at }}
+            **版本**: v${{ steps.version.outputs.release_version }}
+            **上游版本**: ${{ steps.upstream.outputs.version }}
+            **发布类型**: 稳定版 (Stable)
+            
+            ---
+            
+            ### 📊 汉化统计
+            
+            | 指标 | 数量 | 说明 |
+            |------|------|------|
+            | ✅ 应用规则 | **${{ steps.apply.outputs.applied }}** 条 | 成功应用的翻译规则 |
+            | ⏭️ 已存在 | ${{ steps.apply.outputs.existed }} 条 | 翻译已存在，跳过 |
+            | ⚠️ 未匹配 | ${{ steps.apply.outputs.failed }} 条 | 源码变更导致未匹配 |
+            | 📝 替换操作 | ${{ steps.apply.outputs.files }} 次 | 实际执行的替换次数 |
+            
+            ---
             
             ### 📦 安装方式
             
+            **稳定版（推荐）：**
             ```bash
             npm install -g @qingchencloud/openclaw-zh@latest
             ```
             
-            或使用一键安装脚本：
+            **最新版（每小时更新）：**
+            ```bash
+            npm install -g @qingchencloud/openclaw-zh@nightly
+            ```
             
+            **一键安装脚本：**
             ```bash
             # Linux/macOS
             curl -fsSL https://cdn.jsdelivr.net/gh/1186258278/OpenClawChineseTranslation@main/install.sh | bash
             
-            # Windows
+            # Windows PowerShell
             powershell -c "irm https://cdn.jsdelivr.net/gh/1186258278/OpenClawChineseTranslation@main/install.ps1 | iex"
             ```
             
+            ---
+            
             ### 🔗 相关链接
             
-            - 官网: https://openclaw.qt.cool/
-            - 文档: https://github.com/1186258278/OpenClawChineseTranslation
+            - 🔥 官网: https://openclaw.qt.cool/
+            - 📖 文档: https://github.com/1186258278/OpenClawChineseTranslation
+            - 📦 npm: https://www.npmjs.com/package/@qingchencloud/openclaw-zh
+            - 🌙 最新版: https://github.com/1186258278/OpenClawChineseTranslation/releases/tag/nightly
             
             ---
             
@@ -173,11 +205,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 更新同步版本记录
+      - name: 构建摘要
         run: |
-          echo "${{ needs.check-upstream.outputs.upstream_version }}" > .last-synced-version
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .last-synced-version
-          git commit -m "chore: 更新同步版本至 ${{ needs.check-upstream.outputs.upstream_version }}" || true
-          git push || true
+          echo "## 🦞 稳定版发布完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 版本号 | v${{ steps.version.outputs.release_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 上游版本 | ${{ steps.upstream.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 应用规则 | ${{ steps.apply.outputs.applied }} 条 |" >> $GITHUB_STEP_SUMMARY
+          echo "| 未匹配规则 | ${{ steps.apply.outputs.failed }} 条 |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**npm 安装命令**: \`npm install -g @qingchencloud/openclaw-zh@latest\`" >> $GITHUB_STEP_SUMMARY

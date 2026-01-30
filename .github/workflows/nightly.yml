@@ -1,0 +1,223 @@
+# ============================================================
+# OpenClaw 汉化发行版 - 最新版（Nightly）自动构建工作流
+# 武汉晴辰天下网络科技有限公司 | https://qingchencloud.com/
+# ============================================================
+#
+# 触发方式：
+#   - 每小时42分自动运行
+#   - 手动触发
+#
+# 版本说明：
+#   - 最新版 (@nightly)：本工作流发布，每小时自动构建，追踪上游最新代码
+#   - 稳定版 (@latest)：sync-and-release.yml 发布，手动打 tag 触发
+#
+# 用户安装：
+#   npm install -g @qingchencloud/openclaw-zh@nightly
+# ============================================================
+
+name: 最新版构建 (Nightly)
+
+on:
+  schedule:
+    # 每小时42分构建（错峰避免冲突）
+    - cron: '42 * * * *'
+  workflow_dispatch:
+    inputs:
+      force_build:
+        description: '强制构建（跳过版本检查）'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  UPSTREAM_REPO: openclaw/openclaw
+  NODE_VERSION: '22'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ==================== Nightly 构建 ====================
+  nightly-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 设置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: 获取上游版本信息
+        id: upstream
+        run: |
+          UPSTREAM_VERSION=$(curl -s https://registry.npmjs.org/openclaw/latest | jq -r '.version')
+          echo "version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 上游版本: $UPSTREAM_VERSION"
+
+      - name: 克隆上游代码
+        run: |
+          git clone --depth 1 https://github.com/${{ env.UPSTREAM_REPO }}.git openclaw
+          cd openclaw
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "✅ 上游代码已克隆 (commit: $COMMIT_SHA)"
+
+      - name: 应用汉化补丁
+        id: apply
+        run: |
+          # 运行汉化并捕获输出
+          OUTPUT=$(node cli/index.mjs apply --verbose 2>&1) || true
+          echo "$OUTPUT"
+          
+          # 提取统计信息
+          APPLIED=$(echo "$OUTPUT" | grep -oP '应用 \K\d+' | tail -1 || echo "0")
+          EXISTED=$(echo "$OUTPUT" | grep -oP '已存在 \K\d+' | tail -1 || echo "0")
+          FAILED=$(echo "$OUTPUT" | grep -oP '未找到 \K\d+' | tail -1 || echo "0")
+          FILES_COUNT=$(echo "$OUTPUT" | grep -c "替换:" || echo "0")
+          
+          echo "applied=$APPLIED" >> $GITHUB_OUTPUT
+          echo "existed=$EXISTED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "files=$FILES_COUNT" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "📊 汉化统计："
+          echo "   ✅ 应用规则: $APPLIED 条"
+          echo "   ⏭️ 已存在: $EXISTED 条"
+          echo "   ⚠️ 未匹配: $FAILED 条"
+          echo "   📝 替换操作: $FILES_COUNT 次"
+
+      - name: 验证汉化结果
+        run: |
+          node cli/index.mjs verify || true
+          echo "✅ 汉化验证完成"
+
+      - name: 构建 OpenClaw
+        working-directory: openclaw
+        run: |
+          pnpm install
+          pnpm run build
+          echo "✅ 构建完成"
+
+      - name: 准备 Nightly 版本
+        id: prepare
+        run: |
+          UPSTREAM_VERSION="${{ steps.upstream.outputs.version }}"
+          # 使用时间戳确保每小时版本唯一
+          TIMESTAMP=$(date +%Y%m%d%H%M)
+          NIGHTLY_VERSION="${UPSTREAM_VERSION}-nightly.${TIMESTAMP}"
+          
+          echo "nightly_version=$NIGHTLY_VERSION" >> $GITHUB_OUTPUT
+          echo "build_date=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+          echo "build_time=$(date +%H:%M)" >> $GITHUB_OUTPUT
+          echo "📦 Nightly 版本: $NIGHTLY_VERSION"
+          
+          # 更新 package.json
+          cd openclaw
+          npm version $NIGHTLY_VERSION --no-git-tag-version --allow-same-version || true
+          
+          # 修改包信息
+          jq '.name = "@qingchencloud/openclaw-zh"' package.json > tmp.json && mv tmp.json package.json
+          jq '.description = "OpenClaw 汉化发行版 (Nightly) - 武汉晴辰天下网络科技有限公司"' package.json > tmp.json && mv tmp.json package.json
+          
+          # 使用中文 README
+          cp ../README.md ./README.md
+
+      - name: 发布到 npm (nightly 标签)
+        working-directory: openclaw
+        run: npm publish --access public --tag nightly
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
+
+      - name: 删除旧的 nightly 标签
+        run: |
+          git push origin :refs/tags/nightly || true
+          echo "🗑️ 已删除旧的 nightly 标签"
+
+      - name: 创建新的 nightly 标签
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa nightly -m "Nightly build ${{ steps.prepare.outputs.build_date }} ${{ steps.prepare.outputs.build_time }}"
+          git push origin nightly --force
+          echo "🏷️ 已创建 nightly 标签"
+
+      - name: 创建/更新 Nightly Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: nightly
+          name: "🌙 Nightly Build - ${{ steps.prepare.outputs.build_date }} ${{ steps.prepare.outputs.build_time }}"
+          prerelease: true
+          body: |
+            ## 🌙 OpenClaw 汉化版 - 最新版 (Nightly)
+            
+            > ⚠️ **警告**：此为每小时自动构建版本，追踪上游最新代码，可能包含未完全测试的更改。
+            > 
+            > 🔒 **需要稳定版？** 请安装 `@latest`：`npm install -g @qingchencloud/openclaw-zh@latest`
+            
+            **构建时间**: ${{ steps.prepare.outputs.build_date }} ${{ steps.prepare.outputs.build_time }} (UTC)
+            **上游版本**: ${{ steps.upstream.outputs.version }}
+            **Nightly 版本**: ${{ steps.prepare.outputs.nightly_version }}
+            **发布类型**: 最新版 (Nightly) - 每小时自动构建
+            
+            ---
+            
+            ### 📊 汉化统计
+            
+            | 指标 | 数量 | 状态 |
+            |------|------|------|
+            | ✅ 应用规则 | **${{ steps.apply.outputs.applied }}** 条 | 成功 |
+            | ⏭️ 已存在 | ${{ steps.apply.outputs.existed }} 条 | 跳过 |
+            | ⚠️ 未匹配 | ${{ steps.apply.outputs.failed }} 条 | 需关注 |
+            | 📝 替换操作 | ${{ steps.apply.outputs.files }} 次 | - |
+            
+            ---
+            
+            ### 📦 安装 Nightly 版本
+            
+            ```bash
+            # 安装 nightly 版本
+            npm install -g @qingchencloud/openclaw-zh@nightly
+            
+            # 切换回稳定版
+            npm install -g @qingchencloud/openclaw-zh@latest
+            ```
+            
+            ---
+            
+            ### 🔗 相关链接
+            
+            - 🔥 官网: https://openclaw.qt.cool/
+            - 📖 稳定版: https://github.com/1186258278/OpenClawChineseTranslation/releases/latest
+            - 📦 npm: https://www.npmjs.com/package/@qingchencloud/openclaw-zh
+            
+            ---
+            
+            **武汉晴辰天下网络科技有限公司** | https://qingchencloud.com/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 构建摘要
+        run: |
+          echo "## 🌙 Nightly 构建完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| 构建时间 | ${{ steps.prepare.outputs.build_date }} ${{ steps.prepare.outputs.build_time }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 上游版本 | ${{ steps.upstream.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Nightly 版本 | ${{ steps.prepare.outputs.nightly_version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 应用规则 | ${{ steps.apply.outputs.applied }} 条 |" >> $GITHUB_STEP_SUMMARY
+          echo "| 未匹配规则 | ${{ steps.apply.outputs.failed }} 条 |" >> $GITHUB_STEP_SUMMARY

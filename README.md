@@ -43,35 +43,111 @@
 
 ---
 
+## 📸 汉化效果预览
+
+<p align="center">
+  <img src="docs/image/5.png" alt="概览仪表板" width="100%">
+  <br>
+  <em>📊 概览仪表板 - 网关状态、实例监控、快捷操作一目了然</em>
+</p>
+
+<details>
+<summary><b>🖼️ 查看更多截图</b></summary>
+
+<p align="center">
+  <img src="docs/image/1.png" alt="对话界面" width="100%">
+  <br>
+  <em>💬 对话界面 - 与 AI 助手实时交互</em>
+</p>
+
+<p align="center">
+  <img src="docs/image/4.png" alt="渠道管理" width="100%">
+  <br>
+  <em>📱 渠道管理 - WhatsApp、Telegram、Discord 等全平台支持</em>
+</p>
+
+<p align="center">
+  <img src="docs/image/2.png" alt="配置中心" width="100%">
+  <br>
+  <em>⚙️ 配置中心 - 30+ 配置项完整汉化</em>
+</p>
+
+<p align="center">
+  <img src="docs/image/3.png" alt="节点配置" width="100%">
+  <br>
+  <em>🖥️ 节点配置 - 执行审批、安全策略管理</em>
+</p>
+
+<p align="center">
+  <img src="docs/image/6.png" alt="技能插件" width="100%">
+  <br>
+  <em>🔌 技能插件 - 1Password、Apple Notes 等丰富扩展</em>
+</p>
+
+</details>
+
+---
+
 ## ⚡ 一键安装汉化版
 
 ### Windows (PowerShell)
 
 ```powershell
-powershell -c "irm https://cdn.jsdelivr.net/gh/1186258278/OpenClawChineseTranslation@main/install.ps1 | iex"
+# 下载并执行安装脚本
+Invoke-WebRequest -Uri "https://cdn.jsdelivr.net/gh/1186258278/OpenClawChineseTranslation@main/install.ps1" -OutFile "install.ps1"; .\install.ps1
 ```
 
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/1186258278/OpenClawChineseTranslation@main/install.sh | bash
+# 下载并执行安装脚本
+curl -fsSL -o install.sh https://cdn.jsdelivr.net/gh/1186258278/OpenClawChineseTranslation@main/install.sh && bash install.sh
 ```
 
-> 💡 使用 jsDelivr CDN 加速，解决国内网络问题
+> 💡 使用 jsDelivr CDN 加速 | 🔒 [查看脚本源码](https://github.com/1186258278/OpenClawChineseTranslation/blob/main/install.sh)
 
 ---
 
 ## 📦 其他安装方式
 
+### 版本选择
+
+我们提供两个版本源，根据需求选择：
+
+| 版本 | npm 标签 | 更新频率 | 适用场景 |
+|------|----------|----------|----------|
+| **稳定版** | `@latest` | 手动发布 | 生产环境，经过测试，推荐使用 |
+| **最新版** | `@nightly` | 每小时自动 | 测试新功能，追踪上游最新代码 |
+
 ### 方式 1: npm 安装
 
 ```bash
+# 稳定版（推荐）
 npm install -g @qingchencloud/openclaw-zh@latest
+
+# 最新版（每小时更新，追踪上游）
+npm install -g @qingchencloud/openclaw-zh@nightly
 ```
 
 ### 方式 2: 手动下载
 
 访问 [Releases 页面](https://github.com/1186258278/OpenClawChineseTranslation/releases) 下载最新版本。
+
+### 方式 3: Docker 部署
+
+```bash
+# 拉取并运行 (推荐)
+docker run -d \
+  --name openclaw \
+  -p 18789:18789 \
+  -v openclaw-data:/home/node/.openclaw \
+  ghcr.io/qingchencloud/openclaw-zh:latest
+
+# 访问 Dashboard
+# http://localhost:18789
+```
+
+> 📖 详细 Docker 配置请参考下方 [Docker 部署指南](#-docker-部署指南)
 
 ---
 
@@ -107,14 +183,25 @@ openclaw --help             # 查看帮助
 
 ## ✨ 汉化内容
 
-我们汉化了 OpenClaw 的核心交互界面（**16 个模块，150+ 条翻译规则**）：
+我们提供了**深度汉化**，覆盖 **CLI 命令行** + **Dashboard 网页控制台** 两大核心界面。
+
+### 📊 汉化统计
+
+| 指标 | 数量 |
+|------|------|
+| 📁 翻译文件 | **35+** 个 |
+| 📝 翻译规则 | **970+** 条 |
+| 🎯 覆盖模块 | **45+** 个 |
+
+### 🖥️ CLI 命令行 (14 个模块)
 
 | 分类 | 模块 | 说明 |
 |------|------|------|
 | **CLI** | 启动横幅 | 标题、版本信息、有趣的标语口号 |
-| **CLI** | 帮助信息 | 命令说明、参数提示 |
+| **CLI** | 帮助信息 | 命令说明、参数提示、汉化官网链接 |
 | **向导** | 初始化引导 | 完整的 onboard 流程 |
 | **向导** | 安全警告 | 权限警告、风险确认对话框 |
+| **向导** | 完成提示 | 汉化版官网引导 |
 | **TUI** | 等待动画 | 有趣的中文等待短语（如"神游八方中"） |
 | **TUI** | 斜杠命令 | /help, /status 等命令说明 |
 | **命令** | status | 状态概览、安全审计、通道、会话 |
@@ -124,6 +211,48 @@ openclaw --help             # 查看帮助
 | **命令** | doctor | 诊断命令、安全审计警告 |
 | **命令** | uninstall | 卸载提示、清理选项 |
 | **命令** | 认证配置 | API 密钥、模型选择提示 |
+
+### 🌐 Dashboard 网页控制台 (31 个模块)
+
+| 分类 | 模块 | 说明 |
+|------|------|------|
+| **主布局** | 顶栏/侧栏 | 品牌标识、健康状态、导航菜单 |
+| **主布局** | 资源链接 | **汉化官网**、GitHub 仓库链接 |
+| **导航** | 顶部标签页 | 对话、概览、渠道、实例、会话等 |
+| **对话** | 聊天界面 | 消息输入、发送按钮、工具卡片 |
+| **概览** | 系统状态 | 运行时间、活跃会话、模型列表 |
+| **会话** | 会话管理 | 会话列表、详情、存档操作 |
+| **渠道** | 消息渠道 | WhatsApp、Telegram、Discord 等全部渠道卡片 |
+| **技能** | 技能管理 | 已安装、可用技能、详情页 |
+| **节点** | 节点管理 | 本地/远程节点、浏览器配置、审批策略 |
+| **配置** | 配置页面 | **31 个配置分区**完整翻译 |
+| **配置** | 表单元素 | 所有字段标签、帮助文本、占位符 |
+| **配置** | 动态标签 | 300+ 动态生成的标签翻译映射 |
+| **定时任务** | 调度器 | 任务列表、运行状态、操作按钮 |
+| **日志** | 日志查看 | 筛选、搜索、导出功能 |
+| **调试** | 调试工具 | 快照、手动 RPC、事件日志 |
+| **实例** | 实例管理 | 已连接实例、存在信标 |
+
+### 📋 配置页面完整翻译 (31 个分区)
+
+| 分区 | 中文名 | 分区 | 中文名 |
+|------|--------|------|--------|
+| env | 环境 | update | 更新 |
+| agents | 代理 | auth | 身份验证 |
+| channels | 渠道 | messages | 消息 |
+| commands | 命令 | hooks | 钩子 |
+| skills | 技能 | tools | 工具 |
+| gateway | 网关 | wizard | 设置向导 |
+| meta | 元数据 | diagnostics | 诊断 |
+| logging | 日志 | browser | 浏览器 |
+| ui | 界面 | models | 模型 |
+| nodeHost | 节点主机 | bindings | 绑定 |
+| broadcast | 广播 | audio | 音频 |
+| media | 媒体 | approvals | 审批 |
+| session | 会话 | cron | 定时任务 |
+| web | 网页 | discovery | 发现 |
+| canvasHost | 画布主机 | talk | 语音 |
+| plugins | 插件 | | |
 
 **注意**：与 AI 的对话内容取决于你使用的模型，不在汉化范围内。
 
@@ -136,6 +265,178 @@ openclaw --help             # 查看帮助
 - **同时发布** npm 包 + GitHub Releases
 
 版本格式：`{官方版本}-zh.{日期}`，如 `2026.1.29-zh.20260130`
+
+---
+
+## 🐳 Docker 部署指南
+
+### 快速启动
+
+```bash
+# 基础运行
+docker run -d \
+  --name openclaw \
+  -p 18789:18789 \
+  ghcr.io/qingchencloud/openclaw-zh:latest
+
+# 带数据持久化
+docker run -d \
+  --name openclaw \
+  -p 18789:18789 \
+  -v openclaw-data:/home/node/.openclaw \
+  ghcr.io/qingchencloud/openclaw-zh:latest
+```
+
+### 使用 Docker Compose
+
+创建 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+services:
+  openclaw:
+    image: ghcr.io/qingchencloud/openclaw-zh:latest
+    container_name: openclaw
+    ports:
+      - "18789:18789"
+    volumes:
+      - openclaw-data:/home/node/.openclaw
+    environment:
+      - OPENCLAW_GATEWAY_TOKEN=your-secure-token  # 可选：设置访问令牌
+    restart: unless-stopped
+
+volumes:
+  openclaw-data:
+```
+
+启动：
+
+```bash
+docker-compose up -d
+```
+
+### 自行构建 Docker 镜像
+
+如果需要自定义或使用最新代码：
+
+```bash
+# 1. 克隆汉化项目
+git clone https://github.com/1186258278/OpenClawChineseTranslation.git
+cd OpenClawChineseTranslation
+
+# 2. 克隆上游源码
+git clone https://github.com/openclaw/openclaw.git openclaw
+
+# 3. 应用汉化
+npm run cli -- apply
+
+# 4. 构建 Docker 镜像
+cd openclaw
+docker build -t openclaw-zh:local .
+
+# 5. 运行
+docker run -d --name openclaw -p 18789:18789 openclaw-zh:local
+```
+
+### 常用 Docker 命令
+
+```bash
+# 查看日志
+docker logs -f openclaw
+
+# 停止容器
+docker stop openclaw
+
+# 重启容器
+docker restart openclaw
+
+# 进入容器
+docker exec -it openclaw sh
+
+# 删除容器
+docker stop openclaw && docker rm openclaw
+```
+
+### 访问 Dashboard
+
+启动后访问：`http://localhost:18789`
+
+如果设置了令牌，使用：`http://localhost:18789/?token=your-secure-token`
+
+---
+
+## 🔧 手动汉化安装
+
+适用于想要自定义翻译、测试最新代码或参与贡献的用户。
+
+### 完整流程
+
+```bash
+# 1. 克隆汉化项目
+git clone https://github.com/1186258278/OpenClawChineseTranslation.git
+cd OpenClawChineseTranslation
+
+# 2. 克隆上游 OpenClaw 源码
+git clone https://github.com/openclaw/openclaw.git openclaw
+
+# 3. 查看汉化状态
+npm run cli -- status
+
+# 4. 应用汉化补丁
+npm run cli -- apply
+
+# 5. 验证汉化结果
+npm run cli -- verify
+
+# 6. 构建 OpenClaw
+cd openclaw
+pnpm install
+pnpm run build
+
+# 7. 全局安装
+npm install -g .
+
+# 8. 验证安装
+openclaw --version
+openclaw --help
+```
+
+### 汉化 CLI 完整命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run cli -- status` | 查看当前汉化状态 |
+| `npm run cli -- apply` | 应用汉化补丁 |
+| `npm run cli -- apply --dry-run` | 预览汉化（不实际修改） |
+| `npm run cli -- apply --verbose` | 详细输出汉化过程 |
+| `npm run cli -- verify` | 验证汉化结果 |
+| `npm run cli -- restore` | 恢复原版（使用 git checkout） |
+
+### 自定义翻译
+
+1. **找到目标文件**：确定需要翻译的源文件位置
+
+2. **创建翻译规则**：在 `translations/` 对应目录创建 JSON 文件
+   ```json
+   {
+     "file": "src/path/to/file.ts",
+     "description": "文件说明",
+     "replacements": {
+       "\"English Text\"": "\"中文翻译\""
+     }
+   }
+   ```
+
+3. **注册翻译文件**：在 `translations/config.json` 中添加
+
+4. **测试**：
+   ```bash
+   npm run cli -- apply --dry-run --verbose
+   npm run cli -- apply
+   npm run cli -- verify
+   ```
+
+5. **提交 PR**：欢迎贡献你的翻译！
 
 ---
 
@@ -166,12 +467,34 @@ OpenClawChineseTranslation/
 ├── cli/                    # 汉化 CLI 工具
 │   ├── index.mjs           # 入口
 │   ├── commands/           # 命令实现
-│   └── utils/              # 工具函数
+│   └── utils/              # 工具函数（i18n 引擎）
 ├── translations/           # 翻译配置（JSON 格式）
-│   ├── config.json         # 主配置
+│   ├── config.json         # 主配置（加载所有翻译文件）
 │   ├── cli/                # CLI 界面翻译
+│   │   ├── banner.json     # 启动横幅
+│   │   ├── tagline.json    # 有趣标语
+│   │   └── help.json       # 帮助信息
 │   ├── wizard/             # 向导翻译
-│   └── commands/           # 命令翻译
+│   │   ├── onboarding.json # 初始化向导
+│   │   ├── security.json   # 安全警告
+│   │   └── finalize.json   # 完成提示
+│   ├── tui/                # TUI 界面翻译
+│   │   ├── waiting.json    # 等待动画
+│   │   └── commands.json   # 斜杠命令
+│   ├── commands/           # 命令翻译
+│   │   ├── status.json     # status 命令
+│   │   ├── update.json     # update 命令
+│   │   ├── skills.json     # skills 命令
+│   │   └── ...             # 更多命令
+│   └── dashboard/          # Dashboard UI 翻译 (20+ 文件)
+│       ├── navigation.json # 导航菜单
+│       ├── app-render.json # 主布局
+│       ├── chat.json       # 聊天界面
+│       ├── config.json     # 配置页面
+│       ├── schema.json     # 配置 schema
+│       ├── config-form-*.json  # 表单元素
+│       ├── channels-*.json # 各渠道翻译
+│       └── ...             # 更多模块
 ├── docs/                   # 文档
 ├── .github/workflows/      # 自动化工作流
 ├── install.sh              # Linux/macOS 安装脚本
@@ -181,9 +504,10 @@ OpenClawChineseTranslation/
 ### 添加新翻译
 
 1. 在 `translations/` 目录下创建或编辑 JSON 文件
-2. 运行 `npm run cli -- apply --dry-run` 预览
-3. 运行 `npm run cli -- verify` 验证
-4. 提交 PR
+2. 在 `translations/config.json` 中注册新文件
+3. 运行 `npm run cli -- apply --dry-run` 预览
+4. 运行 `npm run cli -- verify` 验证
+5. 提交 PR
 
 详见 [贡献指南](docs/CONTRIBUTING.md) 和 [翻译规范](docs/TRANSLATION_GUIDE.md)
 
@@ -222,6 +546,10 @@ npm uninstall -g @qingchencloud/openclaw-zh
 npm install -g openclaw
 ```
 
+### Q: Dashboard 如何访问？
+
+启动 OpenClaw 后，访问 `http://localhost:18789` 即可打开网页控制台（全中文界面）。
+
 ---
 
 ## 🔗 相关链接
@@ -233,6 +561,7 @@ npm install -g openclaw
 | 🔥 [openclaw.qt.cool](https://openclaw.qt.cool/) | **汉化版官网**（推荐） |
 | 📦 [GitHub Pages](https://1186258278.github.io/OpenClawChineseTranslation/) | 备用下载页 |
 | 📚 [npm 包](https://www.npmjs.com/package/@qingchencloud/openclaw-zh) | npm 安装源 |
+| 💻 [GitHub 仓库](https://github.com/1186258278/OpenClawChineseTranslation) | 源代码 |
 
 ### 上游项目
 
