@@ -31,14 +31,11 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 # 设置工作目录
 WORKDIR /app
 
-# 复制构建好的代码（包括 dist/ 和 node_modules/）
-COPY package.json ./
-COPY openclaw.mjs ./
-COPY dist/ ./dist/
-COPY node_modules/ ./node_modules/
+# 复制所有构建好的代码
+COPY . .
 
-# 全局链接
-RUN npm link
+# 全局安装（使用 npm install -g . 而不是 npm link）
+RUN npm install -g .
 
 # 创建配置目录
 RUN mkdir -p /root/.openclaw
